@@ -20,13 +20,11 @@ def main():
     counter = 0
     for i in range(w):
         for j in range(h):
-            cell = im_array[i][j]
-            n = utils.normalize(cell)
+            normal_map_pixel = im_array[j][i]
+            n = utils.adjust(normal_map_pixel)
             n_dot_L = np.dot(n, L)
-            i = int(counter / 512)
-            j = counter % 512
-            output[i][j] = np.maximum(0, n_dot_L) * MAX_COLOR_VALUE
-            if counter % 100 == 0:
+            output[j][i] = np.maximum(0, n_dot_L) * MAX_COLOR_VALUE
+            if counter % 1000 == 0:
                 print(
                     "Iteration number {0}, i={1}, j={2}".format(counter, i, j)
                 )
