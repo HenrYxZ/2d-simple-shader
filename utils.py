@@ -6,8 +6,9 @@ from constants import MAX_COLOR_VALUE
 def normalize(v):
     norm = np.linalg.norm(v)
     if norm == 0:
-       return v
+        return v
     return v / norm
+
 
 def humanize_time(secs):
     """
@@ -16,6 +17,7 @@ def humanize_time(secs):
     mins, secs = divmod(secs, 60)
     hours, mins = divmod(mins, 60)
     return '%02d:%02d:%02f' % (hours, mins, secs)
+
 
 def adjust(normal_map_pixel):
     """
