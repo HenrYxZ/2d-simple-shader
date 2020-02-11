@@ -8,7 +8,7 @@ import utils
 # Constants
 from constants import MAX_COLOR_VALUE
 NORMAL_MAP_FILENAME = "normal.jpg"
-OUTPUT_FILENAME = "img_out.png"
+OUTPUT_FILENAME = "img_out.jpg"
 NORMAL_VECTORS_FILENAME = "normals"
 NORMAL_VECTORS_FILE_EXT = ".npy"
 SECOND_TO_MS = 1000
@@ -18,7 +18,7 @@ LIGHT_IMG_FILENAME = "light_red.jpg"
 RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
 CREATED_NORMALS_FILENAME = "created_normals.npy"
-CREATED_NORMALS_IMG_FILENAME = "created_normals.png"
+CREATED_NORMALS_IMG_FILENAME = "created_normals.jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
 # The program will output an update every (this number) percent done
