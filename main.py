@@ -7,6 +7,7 @@ import utils
 
 # Constants
 from constants import MAX_COLOR_VALUE
+
 NORMAL_MAP_FILENAME = "normal.jpg"
 OUTPUT_FILENAME = "img_out.jpg"
 NORMAL_VECTORS_FILENAME = "normals"
@@ -15,12 +16,14 @@ SECOND_TO_MS = 1000
 NORMAL_DIMENSIONS = 3
 DARK_IMG_FILENAME = "dark.jpg"
 LIGHT_IMG_FILENAME = "light.jpg"
+SPEC_IMG_FILENAME = "spec.jpg"
 RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
 CREATED_NORMALS_FILENAME = "created_normals.npy"
 CREATED_NORMALS_IMG_FILENAME = "created_normals.jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
+COLOR_FOR_LIGHT = np.array([255, 255, 255])
 # The program will output an update every (this number) percent done
 PERCENTAGE_STEP = 10
 L = utils.normalize(np.array([1, 1, 1]))
@@ -80,10 +83,42 @@ def shade_colors(n, l, dark, light):
         numpy.uint8: The calculated color (RGB)
     """
     # This formula changes the value [-1 - 1] to [0 - 1]
-    # diffuse_coef = (np.dot(n, l) + 1) / 2
     diffuse_coef = np.dot(n, l)
     t = np.maximum(0, diffuse_coef)
     color = light * (1 - t) + dark * t
+    return color
+
+
+def shade_with_specular(n, l, dark, light, specular, ks):
+    """
+    Shader calculation for normal and light vectors and dark, light and
+    specular colors.
+    Args:
+        n(numpy.array): Unit normal vector
+        l(numpy.array): Unit vector in the direction to the light
+        dark(numpy.array): RGB dark color
+        light(numpy.array): RGB light color
+        specular(float): specular value for this pixel (usually from a map)
+        ks(float): size of specularity (this can be changed by the user)
+
+    Returns:
+        numpy.uint8: The calculated color (RGB)
+    """
+    n_dot_l = np.dot(n, l)
+    t = np.maximum(0, n_dot_l)
+    color = light * (1 - t) + dark * t
+    # --------------- Adding specular
+    # unit vector in the direction to the eye or viewer
+    eye = np.array([0, 0, 1])
+    # reflection of the light in the given point
+    # r = l * - 1 + 2 * n_dot_l * n
+    # s = np.dot(eye, r)
+    s = l[2] * -1 + 2 * n[2] * n_dot_l
+    alpha = 2
+    s = s ** alpha
+    print("s: %f" % s)
+    color = color * (1 - s * ks) + specular * s * ks * COLOR_FOR_LIGHT
+    print("color: {}".format(color))
     return color
 
 
@@ -103,7 +138,7 @@ def create_normal_map():
             # create [j][i] normal
             x = i - x0
             y = j - y0
-            z = np.sqrt(DEFAULT_NORMALS_SIZE**2 - np.absolute(x * y))
+            z = np.sqrt(DEFAULT_NORMALS_SIZE ** 2 - np.absolute(x * y))
             normals[j][i] = np.array([x, y, z]) * MAX_COLOR_VALUE
             counter += 1
             if counter % step_size == 0:
@@ -186,6 +221,31 @@ def use_colors(normals, w, h):
     return output
 
 
+def use_specular_with_images(normals, w, h, ks):
+    print("Opening dark image...")
+    dark_img = Image.open(DARK_IMG_FILENAME)
+    print("Opening light image...")
+    light_img = Image.open(LIGHT_IMG_FILENAME)
+    print("Opening specular image...")
+    rgb_spec_img = Image.open(SPEC_IMG_FILENAME)
+    r, g, b = rgb_spec_img.split()
+    # use any channel since all gave the same value
+    spec_img = r
+    dark_array = np.asarray(dark_img)
+    light_array = np.asarray(light_img)
+    spec_array = np.asarray(spec_img) / np.float(MAX_COLOR_VALUE)
+    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
+    print("Shading between light and dark images...")
+    for i in range(w):
+        for j in range(h):
+            n = normals[j][i]
+            dark = dark_array[j][i]
+            light = light_array[j][i]
+            specular = spec_array[j][i]
+            output[j][i] = shade_with_specular(n, L, dark, light, specular, ks)
+    return output
+
+
 def main():
     start = time.time()
     normals_opt = input(
@@ -210,15 +270,22 @@ def main():
     normals, w, h = use_normal_map(normal_img, normals_opt)
     # Start shading using the normals
     shading_opt = input(
-        "Enter [1] to use dark and light images or [2] to use colors or [3] to use grayscale\n"
+        "Enter a shading option:\n" \
+        "[1] grayscale\n" \
+        "[2] 2 colors\n" \
+        "[3] diffuse\n" \
+        "[4] diffuse + specular\n"
     )
     # shading_opt = '1'
-    if shading_opt == '2':
+    if shading_opt == '1':
+        output = use_simple_shading(normals, w, h)
+    elif shading_opt == '2':
         output = use_colors(normals, w, h)
     elif shading_opt == '3':
-        output = use_simple_shading(normals, w, h)
-    else:
         output = use_images(normals, w, h)
+    else:
+        ks = float(input("Enter a size for specular\n"))
+        output = use_specular_with_images(normals, w, h, ks)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
     im_output.save(OUTPUT_FILENAME)
