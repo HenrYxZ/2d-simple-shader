@@ -114,8 +114,17 @@ def shade_with_specular(n, l, dark, light, ks):
     # s = np.dot(eye, r)
     s = l[2] * -1 + 2 * n[2] * n_dot_l
     s = np.maximum(0, s)
-    # alpha = 1
-    # s = s ** alpha
+    # try smoothstep
+    min = 0.01
+    max = 0.99
+    if s < min:
+        s = 0
+    elif s > max:
+        s = 1
+    else:
+        s = -2 * (s ** 3) + 3 * (s ** 2)
+    alpha = 2
+    s = s ** alpha
     color = color * (1 - s * ks) + s * ks * COLOR_FOR_LIGHT
     return color
 
