@@ -33,8 +33,8 @@ def adjust(normal_map_pixel):
     # Change B,G,R to R,G,B
     x, y, z = normal_map_pixel
     # x and y will be from [-1 to 1] and z from [0 to 1]
-    x = 2 * (x / MAX_COLOR_VALUE) - 1
-    y = 2 * (y / MAX_COLOR_VALUE) - 1
-    z = z / MAX_COLOR_VALUE
-    normal_vector = np.array((x, y, z)) / MAX_COLOR_VALUE
+    x = 2 * (x / float(MAX_COLOR_VALUE)) - 1
+    y = 2 * (y / float(MAX_COLOR_VALUE)) - 1
+    z = z / float(MAX_COLOR_VALUE)
+    normal_vector = np.array([x, y, z]) / MAX_COLOR_VALUE
     return normalize(normal_vector)
