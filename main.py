@@ -9,7 +9,7 @@ import utils
 from constants import MAX_COLOR_VALUE
 
 NORMAL_MAP_FILENAME = "normal.jpg"
-OUTPUT_FILENAME = "img_out.jpg"
+OUTPUT_FILENAME = "img_out_"
 NORMAL_VECTORS_FILENAME = "normals"
 NORMAL_VECTORS_FILE_EXT = ".npy"
 SECOND_TO_MS = 1000
@@ -21,9 +21,11 @@ RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
 CREATED_NORMALS_FILENAME = "created_normals.npy"
 CREATED_NORMALS_IMG_FILENAME = "created_normals.jpg"
+DEFAULT_IMG_FORMAT = ".jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
 COLOR_FOR_LIGHT = np.array([255, 255, 255])
+COLOR_FOR_BORDER = np.array([255, 255, 255])
 # The program will output an update every (this number) percent done
 PERCENTAGE_STEP = 10
 L = utils.normalize(np.array([1, 1, 1]))
@@ -91,8 +93,8 @@ def shade_colors(n, l, dark, light):
 
 def shade_with_specular(n, l, dark, light, ks):
     """
-    Shader calculation for normal and light vectors and dark, light and
-    specular colors.
+    Shader calculation for normal and light vectors, dark and light colors and
+    specular size ks.
     Args:
         n(numpy.array): Unit normal vector
         l(numpy.array): Unit vector in the direction to the light
@@ -107,11 +109,6 @@ def shade_with_specular(n, l, dark, light, ks):
     t = np.maximum(0, n_dot_l)
     color = light * t + dark * (1 - t)
     # --------------- Adding specular
-    # unit vector in the direction to the eye or viewer
-    # eye = np.array([0, 0, 1])
-    # reflection of the light in the given point
-    # r = l * - 1 + 2 * n_dot_l * n
-    # s = np.dot(eye, r)
     s = l[2] * -1 + 2 * n[2] * n_dot_l
     s = np.maximum(0, s)
     # try smoothstep
@@ -126,6 +123,36 @@ def shade_with_specular(n, l, dark, light, ks):
     alpha = 2
     s = s ** alpha
     color = color * (1 - s * ks) + s * ks * COLOR_FOR_LIGHT
+    return color
+
+
+def shade_specular_border(n, l, dark, light, ks, thickness):
+    """
+    Shader calculation for normal and light vectors, dark and light colors,
+    and ks specular size and thickness of border parameters.
+    Args:
+        n(numpy.array): Unit normal vector
+        l(numpy.array): Unit vector in the direction to the light
+        dark(numpy.array): RGB dark color
+        light(numpy.array): RGB light color
+        ks(float): size of specularity (this can be changed by the user)
+        thickness(float): thickness parameter for the border defined by user
+
+    Returns:
+        numpy.uint8: The calculated color (RGB)
+    """
+
+    eye = np.array([0, 0, 1])
+    b = np.maximum(0, 1 - np.dot(eye, n))
+    min = 0.01
+    max = 0.99
+    b = (b - max) / max - min
+    if b < min:
+        b = 0
+    elif b > max:
+        b = 1
+    color = shade_with_specular(n, l, dark, light, ks)
+    color = color * (1 - b) + b * COLOR_FOR_BORDER
     return color
 
 
@@ -236,13 +263,33 @@ def use_specular_with_images(normals, w, h, ks):
     dark_array = np.asarray(dark_img)
     light_array = np.asarray(light_img)
     output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
-    print("Shading between light and dark images...")
+    print("Shading with diffuse and specular...")
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
             dark = dark_array[j][i]
             light = light_array[j][i]
             output[j][i] = shade_with_specular(n, L, dark, light, ks)
+    return output
+
+
+def use_border_with_images(normals, w, h, ks, thickness):
+    print("Opening dark image...")
+    dark_img = Image.open(DARK_IMG_FILENAME)
+    print("Opening light image...")
+    light_img = Image.open(LIGHT_IMG_FILENAME)
+    dark_array = np.asarray(dark_img)
+    light_array = np.asarray(light_img)
+    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
+    print("Shading with diffuse, specular and border...")
+    for i in range(w):
+        for j in range(h):
+            n = normals[j][i]
+            dark = dark_array[j][i]
+            light = light_array[j][i]
+            output[j][i] = shade_specular_border(
+                n, L, dark, light, ks, thickness
+            )
     return output
 
 
@@ -276,6 +323,7 @@ def main():
         "[2] 2 colors\n"
         "[3] diffuse\n"
         "[4] diffuse + specular\n"
+        "[5] diffuse + specular + border\n"
     )
     # shading_opt = '1'
     if shading_opt == '1':
@@ -284,13 +332,22 @@ def main():
         output = use_colors(normals, w, h)
     elif shading_opt == '3':
         output = use_images(normals, w, h)
-    else:
+    elif shading_opt == '4':
         ks = float(input("Enter a size for specular\n"))
         output = use_specular_with_images(normals, w, h, ks)
+    else:
+        ks = float(input("Enter a size for specular\n"))
+        thickness = float(
+            input("Enter a thickness for border (float between 0 and 1)\n")
+        )
+        output = use_border_with_images(normals, w, h, ks, thickness)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
-    im_output.save(OUTPUT_FILENAME)
-    print("Output image saved as {}".format(OUTPUT_FILENAME))
+    output_img_filename = (
+        OUTPUT_FILENAME + normals_opt + str(shading_opt) + DEFAULT_IMG_FORMAT
+    )
+    im_output.save(output_img_filename)
+    print("Output image saved as {}".format(output_img_filename))
     end = time.time()
     elapsed_time = (end - start)
     print("Elapsed time was: {}ms".format(elapsed_time * SECOND_TO_MS))
