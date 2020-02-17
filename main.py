@@ -108,7 +108,7 @@ def shade_with_specular(n, l, dark, light, ks):
     color = light * t + dark * (1 - t)
     # --------------- Adding specular
     # unit vector in the direction to the eye or viewer
-    eye = np.array([0, 0, 1])
+    # eye = np.array([0, 0, 1])
     # reflection of the light in the given point
     # r = l * - 1 + 2 * n_dot_l * n
     # s = np.dot(eye, r)
@@ -271,10 +271,10 @@ def main():
     normals, w, h = use_normal_map(normal_img, normals_opt)
     # Start shading using the normals
     shading_opt = input(
-        "Enter a shading option:\n" \
-        "[1] grayscale\n" \
-        "[2] 2 colors\n" \
-        "[3] diffuse\n" \
+        "Enter a shading option:\n"
+        "[1] grayscale\n"
+        "[2] 2 colors\n"
+        "[3] diffuse\n"
         "[4] diffuse + specular\n"
     )
     # shading_opt = '1'
