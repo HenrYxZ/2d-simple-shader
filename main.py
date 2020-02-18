@@ -146,7 +146,7 @@ def shade_specular_border(n, l, dark, light, ks, thickness):
     b = np.maximum(0, 1 - np.dot(eye, n))
     min = 0.01
     max = 0.99
-    b = (b - max) / max - min
+    b = (b - min) / (max - min)
     if b < min:
         b = 0
     elif b > max:
@@ -180,7 +180,7 @@ def create_normal_map():
                 print("{}% of normal map created".format(percent_done))
     normals_array = normals.astype(np.uint8)
     normals_img = Image.fromarray(normals_array)
-    normals_img.save("created_normals.png")
+    normals_img.save(CREATED_NORMALS_IMG_FILENAME)
     return normals_img
 
 
