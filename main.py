@@ -25,7 +25,7 @@ DEFAULT_IMG_FORMAT = ".jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
 COLOR_FOR_LIGHT = np.array([255, 255, 255])
-COLOR_FOR_BORDER = np.array([255, 255, 255])
+COLOR_FOR_BORDER = np.array([0, 0, 255])
 # The program will output an update every (this number) percent done
 PERCENTAGE_STEP = 10
 L = utils.normalize(np.array([1, 1, 1]))
@@ -144,8 +144,8 @@ def shade_specular_border(n, l, dark, light, ks, thickness):
 
     eye = np.array([0, 0, 1])
     b = np.maximum(0, 1 - np.dot(eye, n))
-    min = 0.01
-    max = 0.99
+    min = thickness
+    max = 1
     b = (b - min) / (max - min)
     if b < min:
         b = 0
