@@ -4,7 +4,8 @@ import numpy as np
 import os.path
 # Local libraries
 import utils
-
+import shaders
+import logs
 # Constants
 from constants import MAX_COLOR_VALUE
 
@@ -24,8 +25,6 @@ CREATED_NORMALS_IMG_FILENAME = "created_normals.jpg"
 DEFAULT_IMG_FORMAT = ".jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
-COLOR_FOR_LIGHT = np.array([255, 255, 255])
-COLOR_FOR_BORDER = np.array([0, 0, 255])
 # The program will output an update every (this number) percent done
 PERCENTAGE_STEP = 10
 L = utils.normalize(np.array([1, 1, 1]))
@@ -54,106 +53,6 @@ def adjust_normal_map(rgb_normal_map):
             normals[j][i] = utils.adjust(rgb_normal_map[j][i])
             counter += 1
     return normals
-
-
-def shade(n, l):
-    """
-    Shader calculation for a normal and a light vector.
-    Args:
-        n(numpy.array): Unit normal vector
-        l(numpy.array): Unit vector in the direction to the light
-    Returns:
-        numpy.uint8: The calculated color (grayscale 0-255)
-    """
-    # This formula changes the value [-1 - 1] to [0 - 1]
-    # diffuse_coef = (np.dot(n, l) + 1) / 2
-    diffuse_coef = np.dot(n, l)
-    color = np.uint8(np.maximum(0, diffuse_coef) * MAX_COLOR_VALUE)
-    return color
-
-
-def shade_colors(n, l, dark, light):
-    """
-    Shader calculation for a normal and a light vector and light and dark
-    colors.
-    Args:
-        n(numpy.array): Unit normal vector
-        l(numpy.array): Unit vector in the direction to the light
-        dark(numpy.array): RGB dark color
-        light(numpy.array): RGB light color
-    Returns:
-        numpy.uint8: The calculated color (RGB)
-    """
-    # This formula changes the value [-1 - 1] to [0 - 1]
-    diffuse_coef = np.dot(n, l)
-    t = np.maximum(0, diffuse_coef)
-    color = light * (1 - t) + dark * t
-    return color
-
-
-def shade_with_specular(n, l, dark, light, ks):
-    """
-    Shader calculation for normal and light vectors, dark and light colors and
-    specular size ks.
-    Args:
-        n(numpy.array): Unit normal vector
-        l(numpy.array): Unit vector in the direction to the light
-        dark(numpy.array): RGB dark color
-        light(numpy.array): RGB light color
-        ks(float): size of specularity (this can be changed by the user)
-
-    Returns:
-        numpy.uint8: The calculated color (RGB)
-    """
-    n_dot_l = np.dot(n, l)
-    t = np.maximum(0, n_dot_l)
-    color = light * t + dark * (1 - t)
-    # --------------- Adding specular
-    s = l[2] * -1 + 2 * n[2] * n_dot_l
-    s = np.maximum(0, s)
-    # try smoothstep
-    min = 0.01
-    max = 0.99
-    if s < min:
-        s = 0
-    elif s > max:
-        s = 1
-    else:
-        s = -2 * (s ** 3) + 3 * (s ** 2)
-    alpha = 2
-    s = s ** alpha
-    color = color * (1 - s * ks) + s * ks * COLOR_FOR_LIGHT
-    return color
-
-
-def shade_specular_border(n, l, dark, light, ks, thickness):
-    """
-    Shader calculation for normal and light vectors, dark and light colors,
-    and ks specular size and thickness of border parameters.
-    Args:
-        n(numpy.array): Unit normal vector
-        l(numpy.array): Unit vector in the direction to the light
-        dark(numpy.array): RGB dark color
-        light(numpy.array): RGB light color
-        ks(float): size of specularity (this can be changed by the user)
-        thickness(float): thickness parameter for the border defined by user
-
-    Returns:
-        numpy.uint8: The calculated color (RGB)
-    """
-
-    eye = np.array([0, 0, 1])
-    b = np.maximum(0, 1 - np.dot(eye, n))
-    min = thickness
-    max = 1
-    b = (b - min) / (max - min)
-    if b < min:
-        b = 0
-    elif b > max:
-        b = 1
-    color = shade_with_specular(n, l, dark, light, ks)
-    color = color * (1 - b) + b * COLOR_FOR_BORDER
-    return color
 
 
 def create_normal_map():
@@ -223,25 +122,7 @@ def use_simple_shading(normals, w, h):
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
-            output[j][i] = shade(n, L)
-    return output
-
-
-def use_images(normals, w, h):
-    print("Opening dark image...")
-    dark_img = Image.open(DARK_IMG_FILENAME)
-    print("Opening light image...")
-    light_img = Image.open(LIGHT_IMG_FILENAME)
-    dark_array = np.asarray(dark_img)
-    light_array = np.asarray(light_img)
-    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
-    print("Shading between light and dark images...")
-    for i in range(w):
-        for j in range(h):
-            n = normals[j][i]
-            dark = dark_array[j][i]
-            light = light_array[j][i]
-            output[j][i] = shade_colors(n, L, dark, light)
+            output[j][i] = shaders.shade(n, L)
     return output
 
 
@@ -251,11 +132,11 @@ def use_colors(normals, w, h):
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
-            output[j][i] = shade_colors(n, L, DARK_COLOR, LIGHT_COLOR)
+            output[j][i] = shaders.shade_colors(n, L, DARK_COLOR, LIGHT_COLOR)
     return output
 
 
-def use_specular_with_images(normals, w, h, ks):
+def shade_with_images(normals, w, h, shading_function, shading_str, *args):
     print("Opening dark image...")
     dark_img = Image.open(DARK_IMG_FILENAME)
     print("Opening light image...")
@@ -263,33 +144,13 @@ def use_specular_with_images(normals, w, h, ks):
     dark_array = np.asarray(dark_img)
     light_array = np.asarray(light_img)
     output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
-    print("Shading with diffuse and specular...")
+    print(shading_str)
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
             dark = dark_array[j][i]
             light = light_array[j][i]
-            output[j][i] = shade_with_specular(n, L, dark, light, ks)
-    return output
-
-
-def use_border_with_images(normals, w, h, ks, thickness):
-    print("Opening dark image...")
-    dark_img = Image.open(DARK_IMG_FILENAME)
-    print("Opening light image...")
-    light_img = Image.open(LIGHT_IMG_FILENAME)
-    dark_array = np.asarray(dark_img)
-    light_array = np.asarray(light_img)
-    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
-    print("Shading with diffuse, specular and border...")
-    for i in range(w):
-        for j in range(h):
-            n = normals[j][i]
-            dark = dark_array[j][i]
-            light = light_array[j][i]
-            output[j][i] = shade_specular_border(
-                n, L, dark, light, ks, thickness
-            )
+            output[j][i] = shading_function(n, L, dark, light, *args)
     return output
 
 
@@ -317,30 +178,38 @@ def main():
     # Create a normal vector field from an image map
     normals, w, h = use_normal_map(normal_img, normals_opt)
     # Start shading using the normals
-    shading_opt = input(
-        "Enter a shading option:\n"
-        "[1] grayscale\n"
-        "[2] 2 colors\n"
-        "[3] diffuse\n"
-        "[4] diffuse + specular\n"
-        "[5] diffuse + specular + border\n"
+    shading_opt = str(
+        input(
+            "Enter a shading option:\n"
+            "[1] grayscale\n"
+            "[2] 2 colors\n"
+            "[3] diffuse\n"
+            "[4] diffuse + specular\n"
+            "[5] diffuse + specular + border\n"
+        )
     )
-    # shading_opt = '1'
     if shading_opt == '1':
         output = use_simple_shading(normals, w, h)
     elif shading_opt == '2':
         output = use_colors(normals, w, h)
     elif shading_opt == '3':
-        output = use_images(normals, w, h)
+        output = shade_with_images(
+            normals, w, h, shaders.shade_colors, logs.SHADING_IMAGES
+        )
     elif shading_opt == '4':
         ks = float(input("Enter a size for specular\n"))
-        output = use_specular_with_images(normals, w, h, ks)
+        output = shade_with_images(
+            normals, w, h, shaders.shade_with_specular, logs.SHADING_IMAGES, ks
+        )
     else:
         ks = float(input("Enter a size for specular\n"))
         thickness = float(
             input("Enter a thickness for border (float between 0 and 1)\n")
         )
-        output = use_border_with_images(normals, w, h, ks, thickness)
+        output = shade_with_images(
+            normals, w, h, shaders.shade_specular_border, logs.SHADING_IMAGES,
+            ks, thickness
+        )
     # Turn output into image and show it
     im_output = Image.fromarray(output)
     output_img_filename = (
