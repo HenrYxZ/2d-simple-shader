@@ -17,7 +17,7 @@ SECOND_TO_MS = 1000
 NORMAL_DIMENSIONS = 3
 DARK_IMG_FILENAME = "dark.jpg"
 LIGHT_IMG_FILENAME = "light.jpg"
-SPEC_IMG_FILENAME = "spec.jpg"
+ENV_IMAGE_FILENAME = "env.jpg"
 RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
 CREATED_NORMALS_FILENAME = "created_normals.npy"
@@ -40,6 +40,7 @@ def adjust_normal_map(rgb_normal_map):
         numpy.array: Map of normalized vector normals.
     """
     print("Creating normal vectors from RGB map...")
+    # TODO: Maybe change this
     w, h, _ = rgb_normal_map.shape
     iterations = w * h
     step_size = np.ceil((iterations * PERCENTAGE_STEP) / 100).astype('int')
@@ -126,6 +127,18 @@ def use_simple_shading(normals, w, h):
     return output
 
 
+def use_reflection(normals, w, h):
+    env_img = Image.open(ENV_IMAGE_FILENAME)
+    env_arr = np.asarray(env_img)
+    print("Shading using a reflection...")
+    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
+    for i in range(w):
+        for j in range(h):
+            n = normals[j][i]
+            output[j][i] = shaders.shade_reflection(n, L, i, j, env_arr)
+    return output
+
+
 def use_colors(normals, w, h):
     output = np.zeros((w, h, RGB_CHANNELS), dtype=np.uint8)
     print("Shading between light and dark colors...")
@@ -186,6 +199,7 @@ def main():
             "[3] diffuse\n"
             "[4] diffuse + specular\n"
             "[5] diffuse + specular + border\n"
+            "[6] reflection\n"
         )
     )
     if shading_opt == '1':
@@ -201,7 +215,7 @@ def main():
         output = shade_with_images(
             normals, w, h, shaders.shade_with_specular, logs.SHADING_IMAGES, ks
         )
-    else:
+    elif shading_opt == '5':
         ks = float(input("Enter a size for specular\n"))
         thickness = float(
             input("Enter a thickness for border (float between 0 and 1)\n")
@@ -210,6 +224,8 @@ def main():
             normals, w, h, shaders.shade_specular_border, logs.SHADING_IMAGES,
             ks, thickness
         )
+    else:
+        output = use_reflection(normals, w, h)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
     output_img_filename = (

@@ -1,6 +1,10 @@
 import numpy as np
+from PIL import Image
 # local modules
 from constants import MAX_COLOR_VALUE, COLOR_FOR_LIGHT, COLOR_FOR_BORDER
+
+DISTANCE_TO_ENV_MAP = 10
+kr = 0.5
 
 
 def shade(n, l):
@@ -100,4 +104,26 @@ def shade_specular_border(n, l, dark, light, ks, thickness):
         b = 1
     color = shade_with_specular(n, l, dark, light, ks)
     color = color * (1 - b) + b * COLOR_FOR_BORDER
+    return color
+
+
+def shade_reflection(n, l, i, j, env_arr):
+    """
+    Shader calculation for a normal and a light vector.
+    Args:
+        n(numpy.array): Unit normal vector
+        l(numpy.array): Unit vector in the direction to the light
+    Returns:
+        numpy.uint8: The calculated color (RGB)
+    """
+    greyscale_color = shade(n, l)
+    color = np.array([greyscale_color, greyscale_color, greyscale_color])
+    a, b, c = n
+    h, w, _ = env_arr.shape
+    i_prime = (2 * a * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + i
+    j_prime = (2 * b * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + j
+    i_prime = np.uint8(i_prime) % w
+    j_prime = np.uint8(j_prime) % h
+    reflected_color = env_arr[j_prime][i_prime]
+    color = (1 - kr) * color + kr * reflected_color
     return color
