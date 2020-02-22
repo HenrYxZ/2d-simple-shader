@@ -1,10 +1,9 @@
 import numpy as np
-from PIL import Image
 # local modules
 from constants import MAX_COLOR_VALUE, COLOR_FOR_LIGHT, COLOR_FOR_BORDER
 
 DISTANCE_TO_ENV_MAP = 10
-kr = 0.5
+kr = 0.25
 
 
 def shade(n, l):
@@ -122,8 +121,8 @@ def shade_reflection(n, l, i, j, env_arr):
     h, w, _ = env_arr.shape
     i_prime = (2 * a * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + i
     j_prime = (2 * b * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + j
-    i_prime = np.uint8(i_prime) % w
-    j_prime = np.uint8(j_prime) % h
+    i_prime = int(i_prime) % w
+    j_prime = int(j_prime) % h
     reflected_color = env_arr[j_prime][i_prime]
     color = (1 - kr) * color + kr * reflected_color
     return color
