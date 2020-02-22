@@ -25,6 +25,7 @@ CREATED_NORMALS_IMG_FILENAME = "created_normals.jpg"
 DEFAULT_IMG_FORMAT = ".jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
+BEST_JPEG_QUALITY = 95
 # The program will output an update every (this number) percent done
 PERCENTAGE_STEP = 10
 L = utils.normalize(np.array([1, 1, 1]))
@@ -80,7 +81,7 @@ def create_normal_map():
                 print("{}% of normal map created".format(percent_done))
     normals_array = normals.astype(np.uint8)
     normals_img = Image.fromarray(normals_array)
-    normals_img.save(CREATED_NORMALS_IMG_FILENAME)
+    normals_img.save(CREATED_NORMALS_IMG_FILENAME, quality=BEST_JPEG_QUALITY)
     return normals_img
 
 
@@ -103,7 +104,7 @@ def use_normal_map(normal_img, normal_opt):
     # Create the normals vector map
     start_normals = time.time()
     normals = adjust_normal_map(normal_im_array)
-    np.save(normals_filename, normals)
+    np.save(normals_filename, normals, quality=BEST_JPEG_QUALITY)
     print(
         "Normal vectors stored inside {} file".format(
             normals_filename
@@ -231,7 +232,7 @@ def main():
     output_img_filename = (
         OUTPUT_FILENAME + normals_opt + str(shading_opt) + DEFAULT_IMG_FORMAT
     )
-    im_output.save(output_img_filename)
+    im_output.save(output_img_filename, quality=BEST_JPEG_QUALITY)
     print("Output image saved as {}".format(output_img_filename))
     end = time.time()
     elapsed_time = (end - start)
