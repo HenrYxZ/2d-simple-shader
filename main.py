@@ -128,7 +128,7 @@ def use_simple_shading(normals, w, h):
     return output
 
 
-def use_reflection(normals, w, h):
+def use_reflection(normals, w, h, kr):
     env_img = Image.open(ENV_IMAGE_FILENAME)
     env_arr = np.asarray(env_img)
     print("Shading using a reflection...")
@@ -136,7 +136,7 @@ def use_reflection(normals, w, h):
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
-            output[j][i] = shaders.shade_reflection(n, L, i, j, env_arr)
+            output[j][i] = shaders.shade_reflection(n, L, kr, i, j, env_arr)
     return output
 
 
@@ -226,7 +226,8 @@ def main():
             ks, thickness
         )
     else:
-        output = use_reflection(normals, w, h)
+        kr = 0.25
+        output = use_reflection(normals, w, h, kr)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
     output_img_filename = (

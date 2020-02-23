@@ -3,7 +3,6 @@ import numpy as np
 from constants import MAX_COLOR_VALUE, COLOR_FOR_LIGHT, COLOR_FOR_BORDER
 
 DISTANCE_TO_ENV_MAP = 10
-kr = 0.25
 
 
 def shade(n, l):
@@ -106,12 +105,15 @@ def shade_specular_border(n, l, dark, light, ks, thickness):
     return color
 
 
-def shade_reflection(n, l, i, j, env_arr):
+def shade_reflection(n, l, kr, i, j, env_arr):
     """
     Shader calculation for a normal and a light vector.
     Args:
         n(numpy.array): Unit normal vector
         l(numpy.array): Unit vector in the direction to the light
+        i(int): Position of this pixel on x
+        j(int): Position of this pixel on y
+        env_arr(numpy.array): Array for the environment map
     Returns:
         numpy.uint8: The calculated color (RGB)
     """
