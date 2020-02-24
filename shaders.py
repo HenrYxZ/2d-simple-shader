@@ -151,23 +151,18 @@ def shade_refraction(n, l, kr, ior, i, j, background_arr):
     color = np.array([greyscale_color, greyscale_color, greyscale_color])
     h, w = background_arr.shape[:2]
     v = np.array([0, 0, 1])
-    a = np.log2(ior)
-    if ior < 1:
-        T = (a - 1) * v - a * n
-    elif ior == 1:
-        T = -1 * v
-    else:
-        S = -1 * v + np.dot(v, n) * n
-        S = utils.normalize(S)
-        T = a * v + (a - 1) * S
-        # M = v - np.dot(v, n) * n
-        # T = M * a - v * (1 + a)
+    cos_theta_1 = np.dot(v, n)
+    term = 1 - (1 - cos_theta_1 ** 2) * (ior ** 2)
+    # If term is negative there is no refraction
+    if term < 0:
+        return color
+    T = -1 * v / ior + ((cos_theta_1 / ior) - np.sqrt(term)) * n
     T = utils.normalize(T)
     aT, bT, cT = T
     # This is just in case you want to try different values of d, it's actually
     # a trick to do this, since d would be different for each shading point
     # if cT is different for each shading point
-    d = 10
+    d = 120
     i_prime = (int(round(aT * (d / cT))) + i) % w
     j_prime = (int(round(bT * (d / cT))) + j) % h
     refracted_color = background_arr[j_prime][i_prime]
