@@ -122,7 +122,7 @@ def shade_reflection(n, l, kr, i, j, env_arr):
     greyscale_color = shade(n, l)
     color = np.array([greyscale_color, greyscale_color, greyscale_color])
     a, b, c = n
-    h, w, _ = env_arr.shape
+    h, w = env_arr.shape[:2]
     i_prime = (2 * a * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + i
     j_prime = (2 * b * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + j
     i_prime = int(round(i_prime)) % w
@@ -149,7 +149,7 @@ def shade_refraction(n, l, kr, ior, i, j, background_arr):
     """
     greyscale_color = shade(n, l)
     color = np.array([greyscale_color, greyscale_color, greyscale_color])
-    h, w, _ = background_arr.shape
+    h, w = background_arr.shape[:2]
     v = np.array([0, 0, 1])
     a = np.log2(ior)
     if ior < 1:
