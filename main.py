@@ -9,7 +9,7 @@ import logs
 # Constants
 from constants import MAX_COLOR_VALUE
 
-NORMAL_MAP_FILENAME = "SMnb.png"
+NORMAL_MAP_FILENAME = "normal.jpg"
 OUTPUT_FILENAME = "img_out_"
 NORMAL_VECTORS_FILENAME = "normals"
 NORMAL_VECTORS_FILE_EXT = ".npy"
@@ -18,7 +18,8 @@ NORMAL_DIMENSIONS = 3
 DARK_IMG_FILENAME = "dark.jpg"
 LIGHT_IMG_FILENAME = "light.jpg"
 ENV_IMAGE_FILENAME = "env.jpg"
-BACKGROUND_IMAGE_FILENAME = "background.jpg"
+# BACKGROUND_IMAGE_FILENAME = "background.jpg"
+BACKGROUND_IMAGE_FILENAME = "checkers.png"
 RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
 CREATED_NORMALS_FILENAME = "created_normals.npy"
@@ -252,7 +253,8 @@ def main():
         output = use_reflection(normals, w, h, kr)
     else:
         kr = 0.25
-        ior = float(input("Enter Index of Refraction\n"))
+        # ior = float(input("Enter Index of Refraction\n"))
+        ior = 0.66
         output = use_refraction(normals, w, h, kr, ior)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
