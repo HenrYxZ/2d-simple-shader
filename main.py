@@ -9,7 +9,7 @@ import logs
 # Constants
 from constants import MAX_COLOR_VALUE
 
-NORMAL_MAP_FILENAME = "normal.jpg"
+NORMAL_MAP_FILENAME = "SMnb.png"
 OUTPUT_FILENAME = "img_out_"
 NORMAL_VECTORS_FILENAME = "normals"
 NORMAL_VECTORS_FILE_EXT = ".npy"
@@ -18,6 +18,7 @@ NORMAL_DIMENSIONS = 3
 DARK_IMG_FILENAME = "dark.jpg"
 LIGHT_IMG_FILENAME = "light.jpg"
 ENV_IMAGE_FILENAME = "env.jpg"
+BACKGROUND_IMAGE_FILENAME = "background.jpg"
 RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
 CREATED_NORMALS_FILENAME = "created_normals.npy"
@@ -41,8 +42,7 @@ def adjust_normal_map(rgb_normal_map):
         numpy.array: Map of normalized vector normals.
     """
     print("Creating normal vectors from RGB map...")
-    # TODO: Maybe change this
-    w, h, _ = rgb_normal_map.shape
+    h, w, _ = rgb_normal_map.shape
     iterations = w * h
     step_size = np.ceil((iterations * PERCENTAGE_STEP) / 100).astype('int')
     normals = np.zeros((h, w, NORMAL_DIMENSIONS))
@@ -52,7 +52,7 @@ def adjust_normal_map(rgb_normal_map):
             if counter % step_size == 0:
                 percent_done = int((counter / float(iterations)) * 100)
                 print("{}% of normal vectors created".format(percent_done))
-            normals[j][i] = utils.adjust(rgb_normal_map[j][i])
+            normals[j][i] = utils.adjust(rgb_normal_map[j][i][:3])
             counter += 1
     return normals
 
@@ -104,7 +104,7 @@ def use_normal_map(normal_img, normal_opt):
     # Create the normals vector map
     start_normals = time.time()
     normals = adjust_normal_map(normal_im_array)
-    np.save(normals_filename, normals, quality=BEST_JPEG_QUALITY)
+    np.save(normals_filename, normals)
     print(
         "Normal vectors stored inside {} file".format(
             normals_filename
@@ -131,12 +131,33 @@ def use_simple_shading(normals, w, h):
 def use_reflection(normals, w, h, kr):
     env_img = Image.open(ENV_IMAGE_FILENAME)
     env_arr = np.asarray(env_img)
-    print("Shading using a reflection...")
+    print("Shading using reflection...")
     output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
             output[j][i] = shaders.shade_reflection(n, L, kr, i, j, env_arr)
+    return output
+
+
+def use_refraction(normals, w, h, kr, ior):
+    background_img = Image.open(BACKGROUND_IMAGE_FILENAME)
+    background_arr = np.asarray(background_img)
+    print("Shading using refraction...")
+    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
+    counter = 0
+    step_counter = 1
+    step_size = np.ceil((w * h * PERCENTAGE_STEP) / 100).astype('int')
+    for i in range(w):
+        for j in range(h):
+            n = normals[j][i]
+            output[j][i] = shaders.shade_refraction(
+                n, L, kr, ior, i, j, background_arr
+            )
+            if counter % step_size == 0 and counter > 0:
+                print("{}%".format(step_counter * PERCENTAGE_STEP))
+                step_counter += 1
+            counter += 1
     return output
 
 
@@ -201,6 +222,7 @@ def main():
             "[4] diffuse + specular\n"
             "[5] diffuse + specular + border\n"
             "[6] reflection\n"
+            "[7] refraction\n"
         )
     )
     if shading_opt == '1':
@@ -225,9 +247,13 @@ def main():
             normals, w, h, shaders.shade_specular_border, logs.SHADING_IMAGES,
             ks, thickness
         )
-    else:
+    elif shading_opt == '6':
         kr = 0.25
         output = use_reflection(normals, w, h, kr)
+    else:
+        kr = 0.25
+        ior = float(input("Enter Index of Refraction\n"))
+        output = use_refraction(normals, w, h, kr, ior)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
     output_img_filename = (

@@ -1,5 +1,6 @@
 import numpy as np
 # local modules
+import utils
 from constants import MAX_COLOR_VALUE, COLOR_FOR_LIGHT, COLOR_FOR_BORDER
 
 DISTANCE_TO_ENV_MAP = 10
@@ -111,6 +112,7 @@ def shade_reflection(n, l, kr, i, j, env_arr):
     Args:
         n(numpy.array): Unit normal vector
         l(numpy.array): Unit vector in the direction to the light
+        kr(float): Coefficient of reflection [0..1]
         i(int): Position of this pixel on x
         j(int): Position of this pixel on y
         env_arr(numpy.array): Array for the environment map
@@ -123,8 +125,51 @@ def shade_reflection(n, l, kr, i, j, env_arr):
     h, w, _ = env_arr.shape
     i_prime = (2 * a * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + i
     j_prime = (2 * b * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + j
-    i_prime = int(i_prime) % w
-    j_prime = int(j_prime) % h
+    i_prime = int(round(i_prime)) % w
+    j_prime = int(round(j_prime)) % h
     reflected_color = env_arr[j_prime][i_prime]
     color = (1 - kr) * color + kr * reflected_color
+    return color
+
+
+def shade_refraction(n, l, kr, ior, i, j, background_arr):
+    """
+    Shade including refraction
+    Args:
+        n(numpy.array): Unit normal vector
+        l(numpy.array): Unit vector in the direction to the light
+        kr(float): Coefficient of reflection [0..1]
+        ior(float): Index of Refraction for this interface
+        i(int): Position of this pixel on x
+        j(int): Position of this pixel on y
+        background_arr(numpy.array): Array for the background map
+
+    Returns:
+        numpy.uint8: The calculated color (RGB)
+    """
+    greyscale_color = shade(n, l)
+    color = np.array([greyscale_color, greyscale_color, greyscale_color])
+    h, w, _ = background_arr.shape
+    v = np.array([0, 0, 1])
+    a = np.log2(ior)
+    if ior < 1:
+        T = (a - 1) * v - a * n
+    elif ior == 1:
+        T = -1 * v
+    else:
+        S = -1 * v + np.dot(v, n) * n
+        S = utils.normalize(S)
+        T = a * v + (a - 1) * S
+        # M = v - np.dot(v, n) * n
+        # T = M * a - v * (1 + a)
+    T = utils.normalize(T)
+    aT, bT, cT = T
+    # This is just in case you want to try different values of d, it's actually
+    # a trick to do this, since d would be different for each shading point
+    # if cT is different for each shading point
+    d = 10
+    i_prime = (int(round(aT * (d / cT))) + i) % w
+    j_prime = (int(round(bT * (d / cT))) + j) % h
+    refracted_color = background_arr[j_prime][i_prime]
+    color = (1 - kr) * color + kr * refracted_color
     return color
