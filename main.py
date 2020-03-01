@@ -162,6 +162,29 @@ def use_refraction(normals, w, h, kr, ior):
     return output
 
 
+def use_fresnel(normals, w, h, kr, ior):
+    env_img = Image.open(ENV_IMAGE_FILENAME)
+    env_arr = np.asarray(env_img)
+    background_img = Image.open(BACKGROUND_IMAGE_FILENAME)
+    background_arr = np.asarray(background_img)
+    print("Shading using fresnel...")
+    output = np.zeros((h, w, RGB_CHANNELS), dtype=np.uint8)
+    counter = 0
+    step_counter = 1
+    step_size = np.ceil((w * h * PERCENTAGE_STEP) / 100).astype('int')
+    for i in range(w):
+        for j in range(h):
+            n = normals[j][i]
+            output[j][i] = shaders.shade_fresnel(
+                n, L, kr, ior, i, j, env_arr, background_arr
+            )
+            if counter % step_size == 0 and counter > 0:
+                print("{}%".format(step_counter * PERCENTAGE_STEP))
+                step_counter += 1
+            counter += 1
+    return output
+
+
 def use_colors(normals, w, h):
     output = np.zeros((w, h, RGB_CHANNELS), dtype=np.uint8)
     print("Shading between light and dark colors...")
@@ -224,6 +247,7 @@ def main():
             "[5] diffuse + specular + border\n"
             "[6] reflection\n"
             "[7] refraction\n"
+            "[8] fresnel\n"
         )
     )
     if shading_opt == '1':
@@ -251,11 +275,15 @@ def main():
     elif shading_opt == '6':
         kr = 0.25
         output = use_reflection(normals, w, h, kr)
-    else:
+    elif shading_opt == '7':
         kr = 0.25
         # ior = float(input("Enter Index of Refraction\n"))
         ior = 0.66
         output = use_refraction(normals, w, h, kr, ior)
+    else:
+        kr = 0.25
+        ior = 0.66
+        output = use_fresnel(normals, w, h, kr, ior)
     # Turn output into image and show it
     im_output = Image.fromarray(output)
     output_img_filename = (

@@ -37,3 +37,7 @@ def adjust(normal_map_pixel):
     z = b / float(MAX_COLOR_VALUE)
     normal_vector = np.array([x, y, z])
     return normalize(normal_vector)
+
+
+def degree2radians(degrees):
+    return (degrees / 360) * 2 * np.pi

@@ -3,7 +3,8 @@ import numpy as np
 import utils
 from constants import MAX_COLOR_VALUE, COLOR_FOR_LIGHT, COLOR_FOR_BORDER
 
-DISTANCE_TO_ENV_MAP = 10
+DISTANCE_TO_ENV_MAP = 5
+DISTANCE_TO_BACKGROUND_MAP = 120
 
 
 def shade(n, l):
@@ -162,9 +163,58 @@ def shade_refraction(n, l, kr, ior, i, j, background_arr):
     # This is just in case you want to try different values of d, it's actually
     # a trick to do this, since d would be different for each shading point
     # if cT is different for each shading point
-    d = 120
+    d = DISTANCE_TO_BACKGROUND_MAP
     i_prime = (int(round(aT * (d / cT))) + i) % w
     j_prime = (int(round(bT * (d / cT))) + j) % h
     refracted_color = background_arr[j_prime][i_prime]
     color = (1 - kr) * color + kr * refracted_color
+    return color
+
+
+def shade_fresnel(n, l, kr, ior, i, j, env_arr, background_arr):
+    greyscale_color = shade(n, l)
+    color = np.array([greyscale_color, greyscale_color, greyscale_color])
+    v = np.array([0, 0, 1])
+    cos_theta = np.dot(v, n)
+    sin_theta = np.sqrt((1 - cos_theta ** 2))
+    x1 = np.sin(utils.degree2radians(56))
+    x2 = np.sin(utils.degree2radians(90))
+    y0 = 0.1
+    if sin_theta < x1:
+        fresnel = y0 * (1 - (sin_theta / x1))
+    elif sin_theta < x2:
+        fresnel = (sin_theta - x1) / (x2 - x1)
+        fresnel = max(3 * fresnel, 1)
+    else:
+        fresnel = 1
+        print(sin_theta, fresnel)
+    # -------------------------------------------------------------------------
+    # Reflection
+    a, b, c = n
+    h, w = env_arr.shape[:2]
+    i_prime = (2 * a * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + i
+    j_prime = (2 * b * c * DISTANCE_TO_ENV_MAP) / (-1 + 2 * (c ** 2)) + j
+    i_prime = int(round(i_prime)) % w
+    j_prime = int(round(j_prime)) % h
+    reflected_color = env_arr[j_prime][i_prime]
+    # -------------------------------------------------------------------------
+    # Refraction
+    h, w = background_arr.shape[:2]
+    term = 1 - (1 - cos_theta ** 2) * (ior ** 2)
+    # If term is negative there is no refraction
+    if term < 0:
+        return color
+    T = -1 * v / ior + ((cos_theta / ior) - np.sqrt(term)) * n
+    T = utils.normalize(T)
+    aT, bT, cT = T
+    # This is just in case you want to try different values of d, it's actually
+    # a trick to do this, since d would be different for each shading point
+    # if cT is different for each shading point
+    d = DISTANCE_TO_BACKGROUND_MAP
+    i_prime = (int(round(aT * (d / cT))) + i) % w
+    j_prime = (int(round(bT * (d / cT))) + j) % h
+    refracted_color = background_arr[j_prime][i_prime]
+    # -------------------------------------------------------------------------
+    mix_fresnel = fresnel * reflected_color + (1 - fresnel) * refracted_color
+    color = (1 - kr) * color + kr * mix_fresnel
     return color
