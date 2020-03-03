@@ -4,6 +4,15 @@ from constants import MAX_COLOR_VALUE
 
 
 def normalize(v):
+    """
+    Normalize a vector using numpy.
+
+    Args:
+        v(numpy.array): Input vector
+
+    Returns:
+        numpy.array: Normalized input vector
+    """
     norm = np.linalg.norm(v)
     if norm == 0:
         return v
