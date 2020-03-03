@@ -66,6 +66,27 @@ def adjust_normal_map(rgb_normal_map):
     return normals
 
 
+def inverse_adjust_normal_map(normals):
+    """
+    Return a RGB normal map created from an array of normalized vector normals.
+    Args:
+        normals: Normalized vector normals
+
+    Returns:
+        Image: RGB image for the normal map corresponding to this normals
+    """
+    print("Creating RGB Normal Map image from normals...")
+    h, w, channels = normals.shape
+    rgb_array = np.zeros((h, w, channels), dtype=np.uint8)
+    for j in range(h):
+        for i in range(w):
+            r = (2 * normals[j][i][0] - 1) * MAX_COLOR_VALUE
+            g = (2 * normals[j][i][1] - 1) * MAX_COLOR_VALUE
+            b = normals[j][i][2] * MAX_COLOR_VALUE
+            rgb_array[j][i] = (r, g, b)
+    return Image.fromarray(rgb_array)
+
+
 def create_normal_map():
     print("Creating normal map...")
     # iterate 512x512 array
@@ -196,28 +217,26 @@ def use_height_map(height_map, normals_opt):
         for i in range(w):
             # dx = dx_arr[j][i] / MAX_COLOR_VALUE
             # dy = dy_arr[j][i] / MAX_COLOR_VALUE
-            if i > 0 and i < (w - 1):
-                x0 = float(height_map_arr[j][i + 1])
-                x1 = float(height_map_arr[j][i - 1])
-                # dx = (x1 - x0) / (2.0 * MAX_COLOR_VALUE)
-                dx = (x1 - x0) / 2.0
+            if i > 1 and i < (w - 2):
+                x1 = float(height_map_arr[j][i + 1])
+                x0 = float(height_map_arr[j][i - 1])
+                dx = (x1 - x0) / (MAX_COLOR_VALUE)
+                # dx = (x1 - x0) / 2.0
             else:
                 dx = 0.0
-            if j > 0 and j < (h - 1):
-                y1 = float(height_map_arr[j + 1][i])
-                y0 = float(height_map_arr[j - 1][i])
-                # dy = (y1 - y0) / (2.0 * MAX_COLOR_VALUE)
-                dy = (y1 - y0) / 2.0
+            if j > 1 and j < (h - 2):
+                y0 = 2 * float(height_map_arr[j + 1][i])
+                y1 = 2 * float(height_map_arr[j - 1][i])
+                dy = (y1 - y0) / (MAX_COLOR_VALUE)
+                # dy = (y1 - y0) / 2.0
             else:
                 dy = 0.0
             n = np.array([dx, dy, 1.0])
             normals[j][i] = utils.normalize(n)
     # Only for debugging purposes save an image
-    normals_for_img = (normals * MAX_COLOR_VALUE).astype(np.uint8)
+    normals_img = inverse_adjust_normal_map(normals)
     img_filename = "from_height_map_{}.jpg".format(normals_opt)
-    Image.fromarray(normals_for_img).save(
-        img_filename, quality=BEST_JPEG_QUALITY
-    )
+    normals_img.save(img_filename, quality=BEST_JPEG_QUALITY)
     # np.save(normals_filename, normals)
     return normals, w, h
 # -----------------------------------------------------------------------------
