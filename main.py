@@ -1,5 +1,6 @@
 import time
 from PIL import Image
+from PIL import ImageFilter
 import numpy as np
 import os.path
 # Local libraries
@@ -10,6 +11,7 @@ import logs
 from constants import MAX_COLOR_VALUE
 
 NORMAL_MAP_FILENAME = "normal.jpg"
+HEIGHT_MAP_FILENAME = "height_map.jpg"
 OUTPUT_FILENAME = "img_out_"
 NORMAL_VECTORS_FILENAME = "normals"
 NORMAL_VECTORS_FILE_EXT = ".npy"
@@ -22,16 +24,22 @@ ENV_IMAGE_FILENAME = "env.jpg"
 BACKGROUND_IMAGE_FILENAME = "checkers.png"
 RGB_CHANNELS = 3
 DEFAULT_NORMALS_SIZE = 512
-CREATED_NORMALS_FILENAME = "created_normals.npy"
+DEFAULT_HEIGHT_MAP_SIZE = 512
 CREATED_NORMALS_IMG_FILENAME = "created_normals.jpg"
+CREATED_HEIGHT_MAP_FILENAME = "created_height_map.jpg"
+CREATED_HEIGHT_MAP_ARRAY_FILENAME = "created_height_map.npy"
 DEFAULT_IMG_FORMAT = ".jpg"
 LIGHT_COLOR = np.array([232, 158, 39])
 DARK_COLOR = np.array([14, 5, 74])
 BEST_JPEG_QUALITY = 95
+HEIGHT_MAP_CONE_RADIUS = 200
+DEFAULT_SPECULAR_SIZE = 0.8
 # The program will output an update every (this number) percent done
 PERCENTAGE_STEP = 10
 L = utils.normalize(np.array([1, 1, 1]))
 
+
+# Handling Normals ------------------------------------------------------------
 
 def adjust_normal_map(rgb_normal_map):
     """
@@ -89,6 +97,7 @@ def create_normal_map():
 def use_normal_map(normal_img, normal_opt):
     # Create an array from the image
     normal_im_array = np.asarray(normal_img)
+    # TODO move this up
     normals_filename = (
             NORMAL_VECTORS_FILENAME + normal_opt + NORMAL_VECTORS_FILE_EXT
     )
@@ -117,6 +126,101 @@ def use_normal_map(normal_img, normal_opt):
     # Create output image vector
     w, h, _ = normals.shape
     return normals, w, h
+
+
+def create_height_map():
+    """
+    Create a height map image from a function, save it and return it.
+
+    Returns:
+        Image: The height map in 'L' mode of PIL Image
+    """
+    print("Creating Height map from a function...")
+    cone_h = MAX_COLOR_VALUE
+    cone_r = HEIGHT_MAP_CONE_RADIUS
+    h = DEFAULT_HEIGHT_MAP_SIZE
+    w = DEFAULT_HEIGHT_MAP_SIZE
+    output = np.zeros((h, w), dtype=np.uint8)
+    for j in range(DEFAULT_HEIGHT_MAP_SIZE):
+        for i in range(DEFAULT_HEIGHT_MAP_SIZE):
+            x = i - w / 2
+            y = j - h / 2
+            z = (cone_h / cone_r) * (max(0, cone_r - np.sqrt(x**2 + y**2)))
+            output[j][i] = z
+    height_map = Image.fromarray(output)
+    height_map.save(CREATED_HEIGHT_MAP_FILENAME, quality=BEST_JPEG_QUALITY)
+    return height_map
+
+
+def use_height_map(height_map, normals_opt):
+    """
+    Use the height map to return an array of normals.
+    Args:
+        height_map(Image): The height map image
+        normals_opt(char): The option used for getting normals
+    Returns:
+        np.array: a matrix array of unit normal vectors for the map
+        int: the width of the normals array
+        int: the height of the normals array
+    """
+    print("Using height map...")
+    # TODO move this up
+    normals_filename = (
+            NORMAL_VECTORS_FILENAME + normals_opt + NORMAL_VECTORS_FILE_EXT
+    )
+    if os.path.exists(normals_filename):
+        # Load normals from file
+        print(
+            "Loading normal vectors from file {}".format(
+                normals_filename
+            )
+        )
+        normals = np.load(normals_filename)
+        w, h, _ = normals.shape
+        return normals, w, h
+    # dx_kernel = (-1, 0, 1, -2, 0, 2, -1, 0, 1)
+    # dy_kernel = (-1, -2, -1, 0, 0, 0, 1, 2, 1)
+    # kernel_size = (3, 3)
+    # dx_img = height_map.filter(
+    #     ImageFilter.Kernel(kernel_size, kernel=dx_kernel)
+    # )
+    # dy_img = height_map.filter(
+    #     ImageFilter.Kernel(kernel_size, kernel=dy_kernel)
+    # )
+    # dx_arr = np.asarray(dx_img)
+    # dy_arr = np.asarray(dy_img)
+    w, h = height_map.size
+    height_map_arr = np.asarray(height_map)
+    normals = np.zeros((h, w, NORMAL_DIMENSIONS))
+    for j in range(h):
+        for i in range(w):
+            # dx = dx_arr[j][i] / MAX_COLOR_VALUE
+            # dy = dy_arr[j][i] / MAX_COLOR_VALUE
+            if i > 0 and i < (w - 1):
+                x0 = float(height_map_arr[j][i + 1])
+                x1 = float(height_map_arr[j][i - 1])
+                # dx = (x1 - x0) / (2.0 * MAX_COLOR_VALUE)
+                dx = (x1 - x0) / 2.0
+            else:
+                dx = 0.0
+            if j > 0 and j < (h - 1):
+                y1 = float(height_map_arr[j + 1][i])
+                y0 = float(height_map_arr[j - 1][i])
+                # dy = (y1 - y0) / (2.0 * MAX_COLOR_VALUE)
+                dy = (y1 - y0) / 2.0
+            else:
+                dy = 0.0
+            n = np.array([dx, dy, 1.0])
+            normals[j][i] = utils.normalize(n)
+    # Only for debugging purposes save an image
+    normals_for_img = (normals * MAX_COLOR_VALUE).astype(np.uint8)
+    img_filename = "from_height_map_{}.jpg".format(normals_opt)
+    Image.fromarray(normals_for_img).save(
+        img_filename, quality=BEST_JPEG_QUALITY
+    )
+    # np.save(normals_filename, normals)
+    return normals, w, h
+# -----------------------------------------------------------------------------
 
 
 def use_simple_shading(normals, w, h):
@@ -216,26 +320,46 @@ def shade_with_images(normals, w, h, shading_function, shading_str, *args):
 def main():
     start = time.time()
     normals_opt = input(
-        "Enter [1] to use normal map from image or [2] for using a function\n"
+        "Enter an option to get the normals:\n"
+        "[1] normal map from image\n"
+        "[2] using a function\n"
+        "[3] height map from image\n"
+        "[4] using a function for height map\n"
     )
     normals_opt = str(normals_opt)
-    # normals_opt = '2'
     if normals_opt == '2':
         if os.path.exists(CREATED_NORMALS_IMG_FILENAME):
-            # Load normals from file
             print(
                 "Opening previously created normal map {}".format(
-                    CREATED_NORMALS_FILENAME
+                    CREATED_NORMALS_IMG_FILENAME
                 )
             )
             normal_img = Image.open(CREATED_NORMALS_IMG_FILENAME)
         else:
             normal_img = create_normal_map()
+        normals, w, h = use_normal_map(normal_img, normals_opt)
+    elif normals_opt == '3':
+        print("Opening Height Map...")
+        height_map = Image.open(HEIGHT_MAP_FILENAME)
+        r, g, b = height_map.split()
+        height_map = r
+        normals, w, h = use_height_map(height_map, normals_opt)
+    elif normals_opt == '4':
+        if os.path.exists(CREATED_HEIGHT_MAP_FILENAME):
+            print(
+                "Opening previously created height map {}".format(
+                    CREATED_HEIGHT_MAP_FILENAME
+                )
+            )
+            height_map = Image.open(CREATED_HEIGHT_MAP_FILENAME)
+        else:
+            height_map = create_height_map()
+        normals, w, h = use_height_map(height_map, normals_opt)
     else:
         print("Opening Normal Map...")
         normal_img = Image.open(NORMAL_MAP_FILENAME)
-    # Create a normal vector field from an image map
-    normals, w, h = use_normal_map(normal_img, normals_opt)
+        # Create a normal vector field from an image map
+        normals, w, h = use_normal_map(normal_img, normals_opt)
     # Start shading using the normals
     shading_opt = str(
         input(
@@ -259,12 +383,14 @@ def main():
             normals, w, h, shaders.shade_colors, logs.SHADING_IMAGES
         )
     elif shading_opt == '4':
-        ks = float(input("Enter a size for specular\n"))
+        # ks = float(input("Enter a size for specular\n"))
+        ks = DEFAULT_SPECULAR_SIZE
         output = shade_with_images(
             normals, w, h, shaders.shade_with_specular, logs.SHADING_IMAGES, ks
         )
     elif shading_opt == '5':
-        ks = float(input("Enter a size for specular\n"))
+        # ks = float(input("Enter a size for specular\n"))
+        ks = DEFAULT_SPECULAR_SIZE
         thickness = float(
             input("Enter a thickness for border (float between 0 and 1)\n")
         )
