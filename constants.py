@@ -1,6 +1,8 @@
 import numpy as np
 
 
+COLOR_CHANNELS = 3
 MAX_COLOR_VALUE = 255
+MAX_QUALITY = 95
 COLOR_FOR_LIGHT = np.array([255, 255, 255])
 COLOR_FOR_BORDER = np.array([0, 0, 255])

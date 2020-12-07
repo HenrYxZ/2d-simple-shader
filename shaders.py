@@ -1,7 +1,7 @@
 import numpy as np
 # local modules
 import utils
-from constants import MAX_COLOR_VALUE, COLOR_FOR_LIGHT, COLOR_FOR_BORDER
+from constants import MAX_COLOR_VALUE, COLOR_FOR_BORDER
 
 DISTANCE_TO_ENV_MAP = 5
 DISTANCE_TO_BACKGROUND_MAP = 120
@@ -23,34 +23,34 @@ def shade(n, l):
     return color
 
 
-def shade_colors(n, l, dark, light):
+def shade_lambert(n, l, ambient, diffuse):
     """
     Shader calculation for a normal and a light vector and light and dark
     colors.
     Args:
         n(numpy.array): Unit normal vector
         l(numpy.array): Unit vector in the direction to the light
-        dark(numpy.array): RGB dark color
-        light(numpy.array): RGB light color
+        ambient(numpy.array): RGB dark color
+        diffuse(numpy.array): RGB light color
     Returns:
         numpy.uint8: The calculated color (RGB)
     """
-    # This formula changes the value [-1 - 1] to [0 - 1]
-    diffuse_coef = np.dot(n, l)
-    t = np.maximum(0, diffuse_coef)
-    color = light * (1 - t) + dark * t
+    t = np.dot(n, l)
+    t = np.maximum(0, t)
+    color = ambient * (1 - t) + diffuse * t
     return color
 
 
-def shade_with_specular(n, l, dark, light, ks):
+def shade_with_specular(n, l, ambient, diffuse, specular, ks=0.4):
     """
     Shader calculation for normal and light vectors, dark and light colors and
     specular size ks.
     Args:
-        n(numpy.array): Unit normal vector
-        l(numpy.array): Unit vector in the direction to the light
-        dark(numpy.array): RGB dark color
-        light(numpy.array): RGB light color
+        n(ndarray): Unit normal vector
+        l(ndarray): Unit vector in the direction to the light
+        ambient(ndarray): RGB dark color
+        diffuse(ndarray): RGB light color
+        specular(ndarray): RGB specular color
         ks(float): size of specularity (this can be changed by the user)
 
     Returns:
@@ -58,7 +58,7 @@ def shade_with_specular(n, l, dark, light, ks):
     """
     n_dot_l = np.dot(n, l)
     t = np.maximum(0, n_dot_l)
-    color = light * t + dark * (1 - t)
+    color = ambient * (1 - t) + diffuse * t
     # --------------- Adding specular
     s = l[2] * -1 + 2 * n[2] * n_dot_l
     s = np.maximum(0, s)
@@ -71,9 +71,9 @@ def shade_with_specular(n, l, dark, light, ks):
         s = 1
     else:
         s = -2 * (s ** 3) + 3 * (s ** 2)
-    alpha = 2
-    s = s ** alpha
-    color = color * (1 - s * ks) + s * ks * COLOR_FOR_LIGHT
+    # alpha = 2
+    # s = s ** alpha
+    color = color * (1 - s * ks) + s * ks * specular
     return color
 
 
@@ -177,8 +177,8 @@ def shade_fresnel(n, l, kr, ior, i, j, env_arr, background_arr):
     v = np.array([0, 0, 1])
     cos_theta = np.dot(v, n)
     sin_theta = np.sqrt((1 - cos_theta ** 2))
-    x1 = np.sin(utils.degree2radians(56))
-    x2 = np.sin(utils.degree2radians(90))
+    x1 = np.sin(utils.degrees2radians(56))
+    x2 = np.sin(utils.degrees2radians(90))
     y0 = 0.1
     if sin_theta < x1:
         fresnel = y0 * (1 - (sin_theta / x1))

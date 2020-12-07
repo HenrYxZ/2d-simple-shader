@@ -314,7 +314,7 @@ def use_colors(normals, w, h):
     for i in range(w):
         for j in range(h):
             n = normals[j][i]
-            output[j][i] = shaders.shade_colors(n, L, DARK_COLOR, LIGHT_COLOR)
+            output[j][i] = shaders.shade_lambert(n, L, DARK_COLOR, LIGHT_COLOR)
     return output
 
 
@@ -399,7 +399,7 @@ def main():
         output = use_colors(normals, w, h)
     elif shading_opt == '3':
         output = shade_with_images(
-            normals, w, h, shaders.shade_colors, logs.SHADING_IMAGES
+            normals, w, h, shaders.shade_lambert, logs.SHADING_IMAGES
         )
     elif shading_opt == '4':
         # ks = float(input("Enter a size for specular\n"))
