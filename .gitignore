@@ -134,3 +134,6 @@ dmypy.json
 
 # Ignore numpy binary files
 *.npy
+
+# Output directory for gif
+output/

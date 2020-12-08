@@ -3,8 +3,8 @@ import numpy as np
 import utils
 from constants import MAX_COLOR_VALUE, COLOR_FOR_BORDER
 
-DISTANCE_TO_ENV_MAP = 5
-DISTANCE_TO_BACKGROUND_MAP = 120
+DISTANCE_TO_ENV_MAP = 512
+DISTANCE_TO_BACKGROUND_MAP = 512
 
 
 def shade(n, l):
@@ -41,7 +41,7 @@ def shade_lambert(n, l, ambient, diffuse):
     return color
 
 
-def shade_with_specular(n, l, ambient, diffuse, specular, ks=0.4):
+def shade_with_specular(n, l, ambient, diffuse, specular, ks=1):
     """
     Shader calculation for normal and light vectors, dark and light colors and
     specular size ks.
@@ -61,18 +61,8 @@ def shade_with_specular(n, l, ambient, diffuse, specular, ks=0.4):
     color = ambient * (1 - t) + diffuse * t
     # --------------- Adding specular
     s = l[2] * -1 + 2 * n[2] * n_dot_l
-    s = np.maximum(0, s)
-    # try smoothstep
-    min = 0.01
-    max = 0.99
-    if s < min:
-        s = 0
-    elif s > max:
-        s = 1
-    else:
-        s = -2 * (s ** 3) + 3 * (s ** 2)
-    # alpha = 2
-    # s = s ** alpha
+    alpha = 40
+    s = s ** alpha
     color = color * (1 - s * ks) + s * ks * specular
     return color
 
